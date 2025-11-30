@@ -95,7 +95,7 @@ func promptPlaceholderValues(keys []string, buffered map[string]string) (map[str
 			continue
 		}
 
-		fmt.Printf("Enter value for %s: ", key)
+		fmt.Printf("\rEnter value for %s: ", key)
 		text, err := reader.ReadString('\n')
 		if err != nil {
 			return nil, fmt.Errorf("read placeholder %q: %w", key, err)
@@ -119,13 +119,15 @@ func replacePlaceholders(lines []string, values map[string]string) []string {
 			return match
 		}
 		if val, ok := values[parts[1]]; ok {
+
 			return val
 		}
+
 		return match
 	}
 
 	for _, line := range lines {
-		resolved = append(resolved, placeholderRegexp.ReplaceAllStringFunc(line, replacer))
+		resolved = append(resolved, fmt.Sprintf("- %s", placeholderRegexp.ReplaceAllStringFunc(line, replacer)))
 	}
 
 	return resolved
@@ -255,7 +257,7 @@ func main() {
 				fmt.Fprintln(os.Stderr, err)
 				continue
 			}
-			fmt.Printf("\rSaved in %q\n\r", *outputPath)
+			fmt.Printf("\r %q\n\r saved", *outputPath)
 			return
 		case terminal.ActionQuit:
 			fmt.Println("\rExiting without saving")
