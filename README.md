@@ -34,6 +34,8 @@ go run ./cmd/checklist --input checklist.txt --output done.txt
 
 Lines in your checklist can contain placeholders wrapped in curly braces, such as `{ticket}` or `{env}`. After you press Enter to save, the CLI will prompt you to fill in each unique placeholder and substitute the values in the output file.
 
+If a placeholder contains a pipe (`|`), the segments are treated as choices. For example, `{staging|production}` will present a numbered list and you can pick the option by entering the corresponding number.
+
 #### Example
 
 Input checklist (`checklist.txt`):
