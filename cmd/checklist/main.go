@@ -137,7 +137,6 @@ func main() {
 		case terminal.ActionToggleAt:
 			if idx >= 0 && idx < len(items) {
 				items[idx].Selected = !items[idx].Selected
-				active = idx
 			}
 		case terminal.ActionEnter:
 			if err := writeSelected(items, *outputPath); err != nil {
