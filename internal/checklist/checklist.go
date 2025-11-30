@@ -156,6 +156,44 @@ func promptPlaceholderValues(keys []string, buffered map[string]string) (map[str
 			continue
 		}
 
+		if strings.Contains(key, "|") {
+			parts := strings.Split(key, "|")
+			trimmedParts := make([]string, 0, len(parts))
+			for _, part := range parts {
+				part = strings.TrimSpace(part)
+				if part != "" {
+					trimmedParts = append(trimmedParts, part)
+				}
+			}
+
+			if len(trimmedParts) > 0 {
+				for {
+					fmt.Printf("\rChoose a value for %s: ", key)
+					for idx, part := range trimmedParts {
+						if idx == 0 {
+							fmt.Printf("[%d] %s", idx+1, part)
+						} else {
+							fmt.Printf(" [%d] %s", idx+1, part)
+						}
+					}
+					fmt.Print(" -> ")
+
+					text, err := reader.ReadString('\n')
+					if err != nil {
+						return nil, fmt.Errorf("read placeholder %q: %w", key, err)
+					}
+					choice, err := strconv.Atoi(strings.TrimSpace(text))
+					if err == nil && choice >= 1 && choice <= len(trimmedParts) {
+						values[key] = trimmedParts[choice-1]
+						break
+					}
+					fmt.Println("\rInvalid choice. Please enter one of the listed numbers.")
+				}
+
+				continue
+			}
+		}
+
 		fmt.Printf("\rEnter value for %s: ", key)
 		text, err := reader.ReadString('\n')
 		if err != nil {
