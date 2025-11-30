@@ -11,26 +11,27 @@ const (
 	ActionUp
 	ActionDown
 	ActionToggle
+	ActionToggleAt
 	ActionEnter
 	ActionQuit
 )
 
 // ReadKey interprets key presses from a raw-mode reader.
-func ReadKey(reader *bufio.Reader) (Action, error) {
+func ReadKey(reader *bufio.Reader) (Action, int, error) {
 	b, err := reader.ReadByte()
 	if err != nil {
-		return ActionNone, err
+		return ActionNone, -1, err
 	}
 
 	switch b {
 	case 'q', 'Q':
-		return ActionQuit, nil
+		return ActionQuit, -1, nil
 	case ' ', 'x', 'X':
-		return ActionToggle, nil
+		return ActionToggle, -1, nil
 	case '\r', '\n':
-		return ActionEnter, nil
+		return ActionEnter, -1, nil
 	case 3: // Ctrl+C
-		return ActionQuit, nil
+		return ActionQuit, -1, nil
 	case 0x1b:
 		// escape sequence, attempt to parse arrows
 		if reader.Buffered() >= 2 {
@@ -39,22 +40,31 @@ func ReadKey(reader *bufio.Reader) (Action, error) {
 				reader.Discard(2)
 				switch seq[1] {
 				case 'A':
-					return ActionUp, nil
+					return ActionUp, -1, nil
 				case 'B':
-					return ActionDown, nil
+					return ActionDown, -1, nil
 				case 'C':
-					return ActionDown, nil
+					return ActionDown, -1, nil
 				case 'D':
-					return ActionUp, nil
+					return ActionUp, -1, nil
 				}
 			}
 		}
-		return ActionQuit, nil
+		return ActionQuit, -1, nil
 	case 'k':
-		return ActionUp, nil
+		return ActionUp, -1, nil
 	case 'j':
-		return ActionDown, nil
+		return ActionDown, -1, nil
 	}
 
-	return ActionNone, nil
+	switch {
+	case b >= '1' && b <= '9':
+		return ActionToggleAt, int(b - '1'), nil
+	case b >= 'a' && b <= 'z':
+		return ActionToggleAt, 9 + int(b-'a'), nil
+	case b >= 'A' && b <= 'Z':
+		return ActionToggleAt, 9 + int(b-'A'), nil
+	}
+
+	return ActionNone, -1, nil
 }
