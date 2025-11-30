@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -39,13 +40,7 @@ func loadItems(path string) ([]item, error) {
 	return items, nil
 }
 
-func writeSelected(items []item, path string) error {
-	var lines []string
-	for _, it := range items {
-		if it.Selected {
-			lines = append(lines, it.Text)
-		}
-	}
+func writeSelected(lines []string, path string) error {
 	if len(lines) == 0 {
 		return errors.New("no items selected")
 	}
@@ -66,6 +61,111 @@ func writeSelected(items []item, path string) error {
 		return fmt.Errorf("flush output: %w", err)
 	}
 	return nil
+}
+
+var placeholderRegexp = regexp.MustCompile(`\{([^{}]+)\}`)
+
+func collectPlaceholderKeys(lines []string) []string {
+	seen := make(map[string]bool)
+	var keys []string
+
+	for _, line := range lines {
+		matches := placeholderRegexp.FindAllStringSubmatch(line, -1)
+		for _, match := range matches {
+			if len(match) < 2 {
+				continue
+			}
+			key := match[1]
+			if !seen[key] {
+				seen[key] = true
+				keys = append(keys, key)
+			}
+		}
+	}
+
+	return keys
+}
+
+func promptPlaceholderValues(keys []string, buffered map[string]string) (map[string]string, error) {
+	reader := bufio.NewReader(os.Stdin)
+	values := buffered
+
+	for _, key := range keys {
+		if _, ok := values[key]; ok {
+			continue
+		}
+
+		fmt.Printf("\rEnter value for %s: ", key)
+		text, err := reader.ReadString('\n')
+		if err != nil {
+			return nil, fmt.Errorf("read placeholder %q: %w", key, err)
+		}
+		values[key] = strings.TrimSpace(text)
+	}
+
+	return values, nil
+}
+
+func replacePlaceholders(lines []string, values map[string]string) []string {
+	if len(values) == 0 {
+		return lines
+	}
+
+	resolved := make([]string, 0, len(lines))
+
+	replacer := func(match string) string {
+		parts := placeholderRegexp.FindStringSubmatch(match)
+		if len(parts) < 2 {
+			return match
+		}
+		if val, ok := values[parts[1]]; ok {
+
+			return val
+		}
+
+		return match
+	}
+
+	for _, line := range lines {
+		resolved = append(resolved, fmt.Sprintf("- %s", placeholderRegexp.ReplaceAllStringFunc(line, replacer)))
+	}
+
+	return resolved
+}
+
+func promptAndWriteSelected(items []item, outputPath string, state *terminal.State) (*terminal.State, error) {
+	var selectedLines []string
+	for _, it := range items {
+		if it.Selected {
+			selectedLines = append(selectedLines, it.Text)
+		}
+	}
+
+	keys := collectPlaceholderKeys(selectedLines)
+	placeholderValues := make(map[string]string)
+	if len(keys) > 0 {
+		if err := terminal.Restore(int(os.Stdin.Fd()), state); err != nil {
+			return state, fmt.Errorf("restore terminal: %w", err)
+		}
+
+		values, err := promptPlaceholderValues(keys, placeholderValues)
+		newState, rawErr := terminal.EnableRawMode(int(os.Stdin.Fd()))
+		if rawErr != nil {
+			return state, fmt.Errorf("failed to re-enable raw mode: %w", rawErr)
+		}
+		state = newState
+		if err != nil {
+			return state, err
+		}
+		placeholderValues = values
+	}
+
+	resolved := replacePlaceholders(selectedLines, placeholderValues)
+	if err := writeSelected(resolved, outputPath); err != nil {
+		return state, err
+	}
+
+	return state, nil
 }
 func numToChar(n int) string {
 	if n < 0 || n > 26 {
@@ -119,7 +219,9 @@ func main() {
 		fmt.Fprintln(os.Stderr, "failed to enable raw mode:", err)
 		os.Exit(1)
 	}
-	defer terminal.Restore(int(os.Stdin.Fd()), state)
+	defer func() {
+		terminal.Restore(int(os.Stdin.Fd()), state)
+	}()
 
 	reader := bufio.NewReader(os.Stdin)
 	active := 0
@@ -150,11 +252,12 @@ func main() {
 				items[idx].Selected = !items[idx].Selected
 			}
 		case terminal.ActionEnter:
-			if err := writeSelected(items, *outputPath); err != nil {
+			state, err = promptAndWriteSelected(items, *outputPath, state)
+			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				continue
 			}
-			fmt.Printf("\rSaved in %q\n\r", *outputPath)
+			fmt.Printf("\r %q\n\r saved", *outputPath)
 			return
 		case terminal.ActionQuit:
 			fmt.Println("\rExiting without saving")

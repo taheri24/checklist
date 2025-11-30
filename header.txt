@@ -1,0 +1,1 @@
+apply the patch with using `git apply`, and then follow these steps
