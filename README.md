@@ -2,6 +2,21 @@
 
 Interactive terminal checklist that reads items from a text file and lets you move through them with arrow keys.
 
+## Installation
+
+Install the CLI into your `$GOBIN` using Go modules:
+
+```bash
+go install ./cmd/checklist
+```
+
+Or use the included Makefile targets:
+
+```bash
+make build    # builds bin/checklist
+make install  # installs the checklist binary via go install
+```
+
 ## Usage
 
 ```bash
