@@ -72,7 +72,7 @@ func render(items []item, active int, checklistPath, outputPath string) {
 	fmt.Println("Interactive checklist")
 	fmt.Printf("Source: %s\n", checklistPath)
 	fmt.Printf("Output: %s\n", outputPath)
-	fmt.Println("Use ↑/↓ to move, space to toggle, Enter to save, q or Esc to quit.")
+	fmt.Println("Use ↑/↓ to move, space to toggle, digits/letters to toggle an item directly, Enter to save, q or Esc to quit.")
 	fmt.Println()
 
 	for idx, it := range items {
@@ -115,7 +115,7 @@ func main() {
 
 	for {
 		render(items, active, *checklistPath, *outputPath)
-		action, err := terminal.ReadKey(reader)
+		action, idx, err := terminal.ReadKey(reader)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "read input:", err)
 			return
@@ -134,6 +134,10 @@ func main() {
 			}
 		case terminal.ActionToggle:
 			items[active].Selected = !items[active].Selected
+		case terminal.ActionToggleAt:
+			if idx >= 0 && idx < len(items) {
+				items[idx].Selected = !items[idx].Selected
+			}
 		case terminal.ActionEnter:
 			if err := writeSelected(items, *outputPath); err != nil {
 				fmt.Fprintln(os.Stderr, err)
