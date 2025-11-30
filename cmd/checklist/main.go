@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"checklist/internal/terminal"
@@ -66,16 +67,26 @@ func writeSelected(items []item, path string) error {
 	}
 	return nil
 }
+func numToChar(n int) string {
+	if n < 0 || n > 26 {
+		return ""
+	}
+	return string(rune('A') + rune(n))
+}
 
 func render(items []item, active int, checklistPath, outputPath string) {
 	fmt.Print("\033[H\033[2J")
 	fmt.Println("Interactive checklist")
 	fmt.Printf("\rSource: %s\n", checklistPath)
 	fmt.Printf("Output: %s\n\r", outputPath)
+	fmt.Println(numToChar(2))
 	fmt.Println("Use ↑/↓ to move, space to toggle, digits/letters to toggle an item directly,\n\rEnter to save, q or Esc to quit.")
 	fmt.Println()
-
 	for idx, it := range items {
+		orderCh := strconv.FormatInt(int64(idx)+1, 10)
+		if idx >= 9 {
+			orderCh = numToChar(idx - 9)
+		}
 		pointer := " "
 		if idx == active {
 			pointer = ">"
@@ -84,7 +95,7 @@ func render(items []item, active int, checklistPath, outputPath string) {
 		if it.Selected {
 			check = "x"
 		}
-		fmt.Printf("\r%s- [%s] %s\n", pointer, check, it.Text)
+		fmt.Printf("\r%s-[%s] %s.%s\n", pointer, check, orderCh, it.Text)
 	}
 }
 
